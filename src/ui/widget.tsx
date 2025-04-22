@@ -7,6 +7,12 @@ import {
 	getRecommendationsSearch,
 } from "../ai/actions/spotify";
 
+import {
+	getValidAccessToken,
+	generateSpotifyAuthUrl,
+	isConfigured,
+} from "../auth";
+
 function TrackItem({ track }: { track: SpotifyTrack }) {
 	return (
 		<Anti.Row type="border" padding="small" align="center">
@@ -135,12 +141,102 @@ function SearchForm() {
 	);
 }
 
+async function AuthSection({
+	userId,
+	action,
+}: { userId: string; action?: string }) {
+	const accessToken = await getValidAccessToken(userId);
+
+	if (!accessToken) {
+		if (action === "connect_spotify") {
+			const authUrl = generateSpotifyAuthUrl(userId);
+			if (authUrl) {
+				return (
+					<Anti.Column
+						padding="medium"
+						spacing="small"
+						type="border"
+						align="center"
+					>
+						<Anti.Text type="largetype">Connect to Spotify</Anti.Text>
+						<Anti.Link
+							href={authUrl}
+							text="Click here to authorize Spotify Access"
+						/>
+						<Anti.Text type="small" align="center">
+							After authorizing, this widget will update.
+						</Anti.Text>
+					</Anti.Column>
+				);
+			}
+			return (
+				<Anti.Column
+					padding="medium"
+					spacing="small"
+					type="border"
+					align="center"
+				>
+					<Anti.Text type="negative" weight="bold">
+						Error
+					</Anti.Text>
+					<Anti.Text type="dim">
+						Could not generate Spotify authorization URL.
+					</Anti.Text>
+				</Anti.Column>
+			);
+		}
+
+		return (
+			<Anti.Column
+				padding="medium"
+				spacing="small"
+				type="border"
+				align="center"
+			>
+				<Anti.Text align="center">
+					Connect your Spotify account for user-specific features.
+				</Anti.Text>
+				<Anti.Button
+					action="connect_spotify"
+					text="Connect Spotify"
+					type="primary"
+				/>
+			</Anti.Column>
+		);
+	}
+
+	return (
+		<Anti.Row padding="medium" align="center">
+			<Anti.Badge text="Spotify Connected" type="primary" />
+			{/* User-specific features can be added here later */}
+		</Anti.Row>
+	);
+}
+
 export default async function widgetUI(anti: AntispaceContext<MyAppUIActions>) {
 	const { action, values, meta } = anti;
+	const userId = meta?.user?.id;
 
-	console.log({ action, values, meta });
+	if (!isConfigured()) {
+		return (
+			<Anti.Column
+				padding="medium"
+				spacing="medium"
+				type="border"
+				align="center"
+			>
+				<Anti.Text type="negative" weight="bold">
+					Configuration Error
+				</Anti.Text>
+				<Anti.Text type="dim">
+					Spotify Client ID/Secret, Redirect URI, or App Secret missing.
+				</Anti.Text>
+			</Anti.Column>
+		);
+	}
 
-	// Handle recommendations display
+	const authSection = userId ? await AuthSection({ userId, action }) : null;
+
 	if (action?.startsWith("get_recommendations_")) {
 		let results: SpotifyTrack[] = [];
 		let error: unknown | null = null;
@@ -359,6 +455,8 @@ export default async function widgetUI(anti: AntispaceContext<MyAppUIActions>) {
 				<Anti.Text type="heading1">Spotify</Anti.Text>
 				<Anti.Text type="dim">Search and control your music</Anti.Text>
 			</Anti.Row>
+
+			{authSection}
 
 			<SearchForm />
 			<RecommendationsSearchForm />

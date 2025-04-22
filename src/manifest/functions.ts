@@ -26,6 +26,19 @@ export const set_nickname: AntispaceAppFunction<
 	},
 };
 
+export const connect_spotify: AntispaceAppFunction<"connect_spotify"> = {
+	type: "function",
+	function: {
+		name: "connect_spotify",
+		description: "Initiates the process to connect the user's Spotify account.",
+		parameters: {
+			type: "object",
+			properties: {},
+			required: [],
+		},
+	},
+};
+
 export const say_nickname: AntispaceAppFunction<"say_nickname"> = {
 	type: "function",
 	function: {
