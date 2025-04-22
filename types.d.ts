@@ -18,4 +18,13 @@ export type MyAppUIActions = {
 		seedGenres?: string;
 		results?: SpotifyTrack[];
 	};
+	get_current_playback: {
+		playbackState?: SpotifyPlaybackState;
+	};
+	playback_previous: {};
+	playback_next: {};
+	playback_pause: {};
+	playback_resume: {};
+	toggle_shuffle: {};
+	toggle_repeat: {};
 };

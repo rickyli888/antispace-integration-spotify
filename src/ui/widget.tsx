@@ -1,11 +1,19 @@
 import { components as Anti, type AntispaceContext } from "@antispace/sdk";
 import type { MyAppUIActions } from "../../types";
-import type { SpotifyTrack } from "../spotify-type";
+import type { SpotifyTrack, SpotifyPlaybackState } from "../spotify-type";
 import {
 	searchSpotify,
 	getRecommendations,
 	getRecommendationsSearch,
+	getCurrentPlayback,
+	playbackPrevious,
+	playbackNext,
+	playbackPause,
+	playbackResume,
+	toggleShuffle,
+	toggleRepeat,
 } from "../ai/actions/spotify";
+import { PlaybackStateDisplay } from "./components/PlaybackComponent";
 
 import {
 	getValidAccessToken,
@@ -448,6 +456,173 @@ export default async function widgetUI(anti: AntispaceContext<MyAppUIActions>) {
 		);
 	}
 
+	// Handle playback control actions
+	if (
+		action === "playback_previous" ||
+		action === "playback_next" ||
+		action === "playback_pause" ||
+		action === "playback_resume" ||
+		action === "toggle_shuffle" ||
+		action === "toggle_repeat"
+	) {
+		if (!userId) {
+			return (
+				<Anti.Column padding="medium" spacing="medium" type="border">
+					<Anti.Text type="negative" weight="bold">
+						Error
+					</Anti.Text>
+					<Anti.Text type="negative">
+						You need to be logged in to control playback.
+					</Anti.Text>
+					<Anti.Row padding="medium" justify="center">
+						<Anti.Button action="" text="Back to Main Menu" type="secondary" />
+					</Anti.Row>
+				</Anti.Column>
+			);
+		}
+
+		// Execute the appropriate playback control action
+		let success = false;
+		let actionName = "";
+		try {
+			switch (action) {
+				case "playback_previous":
+					success = await playbackPrevious(userId);
+					actionName = "Skip to previous";
+					break;
+				case "playback_next":
+					success = await playbackNext(userId);
+					actionName = "Skip to next";
+					break;
+				case "playback_pause":
+					success = await playbackPause(userId);
+					actionName = "Pause";
+					break;
+				case "playback_resume":
+					success = await playbackResume(userId);
+					actionName = "Resume";
+					break;
+				case "toggle_shuffle":
+					success = await toggleShuffle(userId);
+					actionName = "Toggle shuffle";
+					break;
+				case "toggle_repeat":
+					success = await toggleRepeat(userId);
+					actionName = "Toggle repeat";
+					break;
+			}
+		} catch (err) {
+			console.error(`Error with playback action ${action}:`, err);
+		}
+
+		// If the action was successful, immediately fetch the updated playback state
+		if (success) {
+			try {
+				const playbackState = await getCurrentPlayback(userId);
+				
+				return (
+					<Anti.Column padding="none" spacing="medium">
+						<Anti.Row padding="medium" justify="space-between" align="center">
+							<Anti.Column>
+								<Anti.Text type="heading1">Spotify Player</Anti.Text>
+								<Anti.Text type="positive">{actionName} successful!</Anti.Text>
+							</Anti.Column>
+							<Anti.Button action="" text="Back to Main Menu" type="secondary" />
+						</Anti.Row>
+
+						<PlaybackStateDisplay playbackState={playbackState} />
+
+						<Anti.Button
+							action="get_current_playback"
+							text="Refresh Playback State"
+							type="primary"
+						/>
+					</Anti.Column>
+				);
+			} catch (fetchErr) {
+				console.error("Error fetching updated playback state:", fetchErr);
+			}
+		}
+
+		// If action failed or fetching the updated state failed, show error message
+		return (
+			<Anti.Column padding="medium" spacing="medium" type="border">
+				{success ? (
+					<Anti.Text type="positive">{actionName} successful, but couldn't fetch updated state.</Anti.Text>
+				) : (
+					<Anti.Text type="negative">
+						There was an issue updating playback. This might be due to
+						restrictions on the current device.
+					</Anti.Text>
+				)}
+				<Anti.Button
+					action="get_current_playback"
+					text="View Playback State"
+					type="primary"
+				/>
+				<Anti.Button
+					action=""
+					text="Back to Main Menu"
+					type="secondary"
+				/>
+			</Anti.Column>
+		);
+	}
+
+	// Handle get_current_playback action
+	if (action === "get_current_playback") {
+		let playbackState: SpotifyPlaybackState | null = null;
+		let error: unknown | null = null;
+
+		if ((values as { playbackState?: SpotifyPlaybackState }).playbackState) {
+			playbackState =
+				(values as { playbackState?: SpotifyPlaybackState }).playbackState ||
+				null;
+		} else if (userId) {
+			try {
+				playbackState = await getCurrentPlayback(userId);
+			} catch (err) {
+				error = err;
+				console.error("Error getting playback state:", err);
+			}
+		}
+
+		if (error) {
+			return (
+				<Anti.Column padding="medium" spacing="medium" type="border">
+					<Anti.Row spacing="small" align="center">
+						<Anti.Text type="negative" weight="bold">
+							Error
+						</Anti.Text>
+					</Anti.Row>
+					<Anti.Text type="negative">
+						There was an error getting your playback state. Please try again.
+					</Anti.Text>
+					<Anti.Row padding="medium" justify="center">
+						<Anti.Button action="" text="Back to Main Menu" type="secondary" />
+					</Anti.Row>
+				</Anti.Column>
+			);
+		}
+
+		return (
+			<Anti.Column padding="none" spacing="medium">
+				<Anti.Row padding="medium" justify="space-between" align="center">
+					<Anti.Text type="heading1">Spotify Player</Anti.Text>
+					<Anti.Button action="" text="Back to Main Menu" type="secondary" />
+				</Anti.Row>
+
+				<PlaybackStateDisplay playbackState={playbackState} />
+
+				<Anti.Button
+					action="get_current_playback"
+					text="Refresh Playback State"
+					type="primary"
+				/>
+			</Anti.Column>
+		);
+	}
+
 	// Default view
 	return (
 		<Anti.Column padding="none" spacing="medium">
@@ -457,6 +632,23 @@ export default async function widgetUI(anti: AntispaceContext<MyAppUIActions>) {
 			</Anti.Row>
 
 			{authSection}
+
+			{/* Add this button if the user is authenticated */}
+			{userId && (await getValidAccessToken(userId)) && (
+				<Anti.Column padding="medium" type="border">
+					<Anti.Row spacing="small" align="center">
+						<Anti.Text type="heading2">Player Controls</Anti.Text>
+					</Anti.Row>
+					<Anti.Text type="dim">
+						View and control your Spotify playback
+					</Anti.Text>
+					<Anti.Button
+						action="get_current_playback"
+						text="View Current Playback"
+						type="primary"
+					/>
+				</Anti.Column>
+			)}
 
 			<SearchForm />
 			<RecommendationsSearchForm />

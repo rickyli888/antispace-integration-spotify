@@ -1,8 +1,45 @@
 import type { AntispaceMetadata } from "@antispace/sdk";
-import type { SpotifyTrack } from "../../spotify-type";
+import type { SpotifyTrack, SpotifyPlaybackState } from "../../spotify-type";
 import { spotifyClient } from "../../config";
-import { isConfigured } from "../../auth";
+import { isConfigured, getValidAccessToken } from "../../auth";
 import type { Track, RecommendationSeed } from "@spotify/web-api-ts-sdk";
+
+export async function getCurrentPlayback(
+	userId: string,
+): Promise<SpotifyPlaybackState | null> {
+	try {
+		console.log(`Getting current playback for user ${userId}`);
+		const accessToken = await getValidAccessToken(userId);
+
+		if (!accessToken) {
+			console.log(`No valid access token for user ${userId}`);
+			return null;
+		}
+
+		const response = await fetch("https://api.spotify.com/v1/me/player", {
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		});
+
+		// If 204 No Content, the user is not playing anything
+		if (response.status === 204) {
+			console.log("User is not playing anything");
+			return null;
+		}
+
+		if (!response.ok) {
+			console.error(`Error getting playback: ${response.status}`);
+			return null;
+		}
+
+		const data = await response.json();
+		return data as SpotifyPlaybackState;
+	} catch (error) {
+		console.error("Error getting current playback:", error);
+		return null;
+	}
+}
 
 async function ensureValidToken() {
 	console.log("Ensuring valid Spotify token before API call...");
@@ -115,7 +152,12 @@ export async function getRecommendations(
 			console.error("Error fetching track:", trackError);
 		}
 
-		const recommendationParams: any = {
+		const recommendationParams: {
+			seed_tracks: string[];
+			limit: number;
+			market: string;
+			target_popularity?: number;
+		} = {
 			seed_tracks: [trackId],
 			limit: 8,
 			market: "US",
@@ -220,6 +262,228 @@ export async function getRecommendations(
 			console.error(`Error message: ${error.message}`);
 		}
 		return [];
+	}
+}
+
+export async function playbackPrevious(userId: string): Promise<boolean> {
+	try {
+		console.log(`Skipping to previous track for user ${userId}`);
+		const accessToken = await getValidAccessToken(userId);
+
+		if (!accessToken) {
+			console.log(`No valid access token for user ${userId}`);
+			return false;
+		}
+
+		const response = await fetch(
+			"https://api.spotify.com/v1/me/player/previous",
+			{
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+				},
+			},
+		);
+
+		if (response.status === 204 || response.status === 200) {
+			console.log(`Successfully skipped to previous track (status: ${response.status})`);
+			return true;
+		}
+
+		console.error(`Error skipping to previous track: ${response.status}`);
+		return false;
+	} catch (error) {
+		console.error("Error skipping to previous track:", error);
+		return false;
+	}
+}
+
+export async function playbackNext(userId: string): Promise<boolean> {
+	try {
+		console.log(`Skipping to next track for user ${userId}`);
+		const accessToken = await getValidAccessToken(userId);
+
+		if (!accessToken) {
+			console.log(`No valid access token for user ${userId}`);
+			return false;
+		}
+
+		const response = await fetch("https://api.spotify.com/v1/me/player/next", {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		});
+
+		if (response.status === 204 || response.status === 200) {
+			console.log(`Successfully skipped to next track (status: ${response.status})`);
+			return true;
+		}
+
+		console.error(`Error skipping to next track: ${response.status}`);
+		return false;
+	} catch (error) {
+		console.error("Error skipping to next track:", error);
+		return false;
+	}
+}
+
+export async function playbackPause(userId: string): Promise<boolean> {
+	try {
+		console.log(`Pausing playback for user ${userId}`);
+		const accessToken = await getValidAccessToken(userId);
+
+		if (!accessToken) {
+			console.log(`No valid access token for user ${userId}`);
+			return false;
+		}
+
+		const response = await fetch("https://api.spotify.com/v1/me/player/pause", {
+			method: "PUT",
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		});
+
+		if (response.status === 204 || response.status === 200) {
+			console.log(`Successfully paused playback (status: ${response.status})`);
+			return true;
+		}
+
+		console.error(`Error pausing playback: ${response.status}`);
+		return false;
+	} catch (error) {
+		console.error("Error pausing playback:", error);
+		return false;
+	}
+}
+
+export async function playbackResume(userId: string): Promise<boolean> {
+	try {
+		console.log(`Resuming playback for user ${userId}`);
+		const accessToken = await getValidAccessToken(userId);
+
+		if (!accessToken) {
+			console.log(`No valid access token for user ${userId}`);
+			return false;
+		}
+
+		const response = await fetch("https://api.spotify.com/v1/me/player/play", {
+			method: "PUT",
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		});
+
+		if (response.status === 204 || response.status === 200) {
+			console.log(`Successfully resumed playback (status: ${response.status})`);
+			return true;
+		}
+
+		console.error(`Error resuming playback: ${response.status}`);
+		return false;
+	} catch (error) {
+		console.error("Error resuming playback:", error);
+		return false;
+	}
+}
+
+export async function toggleShuffle(userId: string): Promise<boolean> {
+	try {
+		console.log(`Toggling shuffle for user ${userId}`);
+		const accessToken = await getValidAccessToken(userId);
+
+		if (!accessToken) {
+			console.log(`No valid access token for user ${userId}`);
+			return false;
+		}
+
+		// First get current playback state to determine current shuffle state
+		const playbackState = await getCurrentPlayback(userId);
+		if (!playbackState) {
+			console.log("Could not get current playback state");
+			return false;
+		}
+
+		// Toggle the shuffle state
+		const newShuffleState = !playbackState.shuffle_state;
+
+		const response = await fetch(
+			`https://api.spotify.com/v1/me/player/shuffle?state=${newShuffleState}`,
+			{
+				method: "PUT",
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+				},
+			},
+		);
+
+		if (response.status === 204 || response.status === 200) {
+			console.log(`Successfully set shuffle to ${newShuffleState} (status: ${response.status})`);
+			return true;
+		}
+
+		console.error(`Error toggling shuffle: ${response.status}`);
+		return false;
+	} catch (error) {
+		console.error("Error toggling shuffle:", error);
+		return false;
+	}
+}
+
+export async function toggleRepeat(userId: string): Promise<boolean> {
+	try {
+		console.log(`Toggling repeat for user ${userId}`);
+		const accessToken = await getValidAccessToken(userId);
+
+		if (!accessToken) {
+			console.log(`No valid access token for user ${userId}`);
+			return false;
+		}
+
+		// First get current playback state to determine current repeat state
+		const playbackState = await getCurrentPlayback(userId);
+		if (!playbackState) {
+			console.log("Could not get current playback state");
+			return false;
+		}
+
+		// Cycle through repeat states: off -> context -> track -> off
+		let newRepeatState: string;
+		switch (playbackState.repeat_state) {
+			case "off":
+				newRepeatState = "context";
+				break;
+			case "context":
+				newRepeatState = "track";
+				break;
+			case "track":
+				newRepeatState = "off";
+				break;
+			default:
+				newRepeatState = "off";
+		}
+
+		const response = await fetch(
+			`https://api.spotify.com/v1/me/player/repeat?state=${newRepeatState}`,
+			{
+				method: "PUT",
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+				},
+			},
+		);
+
+		if (response.status === 204 || response.status === 200) {
+			console.log(`Successfully set repeat to ${newRepeatState} (status: ${response.status})`);
+			return true;
+		}
+
+		console.error(`Error toggling repeat: ${response.status}`);
+		return false;
+	} catch (error) {
+		console.error("Error toggling repeat:", error);
+		return false;
 	}
 }
 

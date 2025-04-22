@@ -140,3 +140,96 @@ export const recommendations_search: AntispaceAppFunction<
 		},
 	},
 };
+
+export const get_current_playback: AntispaceAppFunction<"get_current_playback"> =
+	{
+		type: "function",
+		function: {
+			name: "get_current_playback",
+			description:
+				"Get information about the user's current Spotify playback state",
+			parameters: {
+				type: "object",
+				properties: {},
+				required: [],
+			},
+		},
+	};
+
+export const playback_previous: AntispaceAppFunction<"playback_previous"> = {
+	type: "function",
+	function: {
+		name: "playback_previous",
+		description: "Skip to the previous track in the user's Spotify playback",
+		parameters: {
+			type: "object",
+			properties: {},
+			required: [],
+		},
+	},
+};
+
+export const playback_next: AntispaceAppFunction<"playback_next"> = {
+	type: "function",
+	function: {
+		name: "playback_next",
+		description: "Skip to the next track in the user's Spotify playback",
+		parameters: {
+			type: "object",
+			properties: {},
+			required: [],
+		},
+	},
+};
+
+export const playback_pause: AntispaceAppFunction<"playback_pause"> = {
+	type: "function",
+	function: {
+		name: "playback_pause",
+		description: "Pause the user's Spotify playback",
+		parameters: {
+			type: "object",
+			properties: {},
+			required: [],
+		},
+	},
+};
+
+export const playback_resume: AntispaceAppFunction<"playback_resume"> = {
+	type: "function",
+	function: {
+		name: "playback_resume",
+		description: "Resume the user's Spotify playback",
+		parameters: {
+			type: "object",
+			properties: {},
+			required: [],
+		},
+	},
+};
+
+export const toggle_shuffle: AntispaceAppFunction<"toggle_shuffle"> = {
+	type: "function",
+	function: {
+		name: "toggle_shuffle",
+		description: "Toggle shuffle mode for the user's Spotify playback",
+		parameters: {
+			type: "object",
+			properties: {},
+			required: [],
+		},
+	},
+};
+
+export const toggle_repeat: AntispaceAppFunction<"toggle_repeat"> = {
+	type: "function",
+	function: {
+		name: "toggle_repeat",
+		description: "Toggle repeat mode for the user's Spotify playback",
+		parameters: {
+			type: "object",
+			properties: {},
+			required: [],
+		},
+	},
+};

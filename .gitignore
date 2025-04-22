@@ -3,3 +3,4 @@ node_modules/
 .anti/
 package-lock.json
 bun.lock
+bun.lockb
