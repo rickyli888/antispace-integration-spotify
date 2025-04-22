@@ -1,18 +1,17 @@
 import { supabase, type SpotifyTokenData } from "./supabaseClient";
-import jwt from "jsonwebtoken";
-import type { JwtPayload } from "jsonwebtoken";
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI; // e.g., 'http://localhost:3000/auth/spotify/callback' or your deployed callback URL
-
-const APP_SECRET = process.env.APP_SECRET; // A strong secret for signing JWT state
 
 const SPOTIFY_SCOPES =
 	"user-read-currently-playing user-modify-playback-state user-read-playback-state"; // Add necessary scopes
 
 const SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize";
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
+
+// Define a 5-minute expiration time for state (in milliseconds)
+const STATE_EXPIRY_MS = 5 * 60 * 1000;
 
 interface SpotifyTokenResponse {
 	access_token: string;
@@ -22,20 +21,95 @@ interface SpotifyTokenResponse {
 	refresh_token: string;
 }
 
-interface StateTokenPayload extends JwtPayload {
-	userId: string;
-	nonce: string;
+// Interface for state data stored in Supabase
+interface StateData {
+	state: string;
+	user_id: string;
+	expires_at: string;
 }
 
 export function isConfigured(): boolean {
 	const hasClientId = Boolean(SPOTIFY_CLIENT_ID);
 	const hasClientSecret = Boolean(SPOTIFY_CLIENT_SECRET);
 	const hasRedirectUri = Boolean(SPOTIFY_REDIRECT_URI);
-	const hasAppSecret = Boolean(APP_SECRET);
 	console.log(
-		`Spotify OAuth Config Check - Client ID: ${hasClientId ? "✓" : "✗"}, Secret: ${hasClientSecret ? "✓" : "✗"}, Redirect URI: ${hasRedirectUri ? "✓" : "✗"}, App Secret: ${hasAppSecret ? "✓" : "✗"}`,
+		`Spotify OAuth Config Check - Client ID: ${hasClientId ? "✓" : "✗"}, Secret: ${hasClientSecret ? "✓" : "✗"}, Redirect URI: ${hasRedirectUri ? "✓" : "✗"}`,
 	);
-	return hasClientId && hasClientSecret && hasRedirectUri && hasAppSecret;
+	return hasClientId && hasClientSecret && hasRedirectUri;
+}
+
+/**
+ * Generates a random string for use as a state parameter
+ */
+function generateRandomState(): string {
+	// Generate a random string using Math.random (available in all JS environments)
+	return (
+		Math.random().toString(36).substring(2, 15) +
+		Math.random().toString(36).substring(2, 15)
+	);
+}
+
+/**
+ * Saves a state parameter to Supabase with the associated userId
+ */
+async function saveState(
+	state: string,
+	userId: string,
+): Promise<{ error: Error | null }> {
+	const expires_at = new Date(Date.now() + STATE_EXPIRY_MS).toISOString();
+
+	const { error } = await supabase.from("spotify_states").insert({
+		state,
+		user_id: userId,
+		expires_at,
+	});
+
+	if (error) {
+		console.error(`Error saving state for user ${userId}:`, error);
+		return { error };
+	}
+
+	console.log(`State saved for user ${userId}, expires at ${expires_at}`);
+	return { error: null };
+}
+
+/**
+ * Verifies a state parameter and returns the associated userId if valid
+ */
+export async function verifyState(
+	state: string,
+): Promise<{ userId: string | null; error: string | null }> {
+	if (!state) {
+		return { userId: null, error: "No state parameter provided" };
+	}
+
+	// Get the state from Supabase
+	const { data, error } = await supabase
+		.from("spotify_states")
+		.select("user_id, expires_at")
+		.eq("state", state)
+		.single();
+
+	if (error) {
+		console.error("State verification failed:", error);
+		return { userId: null, error: "Invalid state parameter" };
+	}
+
+	if (!data) {
+		return { userId: null, error: "State not found" };
+	}
+
+	// Check if the state has expired
+	const expiresAt = new Date(data.expires_at).getTime();
+	if (Date.now() > expiresAt) {
+		return { userId: null, error: "State has expired" };
+	}
+
+	// Clean up the used state to prevent replay attacks
+	await supabase.from("spotify_states").delete().eq("state", state);
+
+	console.log(`State verified successfully for user ${data.user_id}`);
+	return { userId: data.user_id, error: null };
 }
 
 /**
@@ -104,9 +178,11 @@ export async function getTokens(
 }
 
 /**
- * Generates the Spotify authorization URL with a signed JWT state parameter.
+ * Generates the Spotify authorization URL with a simple random state parameter.
  */
-export function generateSpotifyAuthUrl(userId: string): string | null {
+export async function generateSpotifyAuthUrl(
+	userId: string,
+): Promise<string | null> {
 	if (!isConfigured() || !userId) {
 		console.error(
 			"generateSpotifyAuthUrl: Configuration incomplete or userId missing.",
@@ -114,15 +190,21 @@ export function generateSpotifyAuthUrl(userId: string): string | null {
 		return null;
 	}
 
-	if (!APP_SECRET || !SPOTIFY_CLIENT_ID || !SPOTIFY_REDIRECT_URI) {
+	if (!SPOTIFY_CLIENT_ID || !SPOTIFY_REDIRECT_URI) {
 		console.error(
 			"generateSpotifyAuthUrl: Missing required environment variables.",
 		);
 		return null;
 	}
-	const nonce = Math.random().toString(36).substring(2, 15); // Simple nonce
-	const statePayload: StateTokenPayload = { userId, nonce };
-	const state = jwt.sign(statePayload, APP_SECRET, { expiresIn: "5m" }); // Short expiry for state
+
+	// Generate a random state and save it with the userId
+	const state = generateRandomState();
+	const { error } = await saveState(state, userId);
+
+	if (error) {
+		console.error(`Failed to save state for user ${userId}:`, error);
+		return null;
+	}
 
 	const params = new URLSearchParams({
 		client_id: SPOTIFY_CLIENT_ID,
@@ -135,33 +217,6 @@ export function generateSpotifyAuthUrl(userId: string): string | null {
 	const authUrl = `${SPOTIFY_AUTH_URL}?${params.toString()}`;
 	console.log(`Generated Spotify Auth URL for user ${userId}`);
 	return authUrl;
-}
-
-/**
- * Verifies the state parameter (JWT) from the Spotify callback.
- */
-export function verifyStateJWT(state: string): {
-	userId: string | null;
-	error: string | null;
-} {
-	if (!APP_SECRET) {
-		return { userId: null, error: "APP_SECRET not configured" };
-	}
-	try {
-		const decoded = jwt.verify(state, APP_SECRET) as StateTokenPayload;
-		if (typeof decoded === "object" && decoded.userId) {
-			console.log(`State JWT verified successfully for user ${decoded.userId}`);
-			return { userId: decoded.userId, error: null };
-		}
-		console.error("State JWT verification failed: Invalid payload structure");
-		return { userId: null, error: "Invalid state payload" };
-	} catch (error: any) {
-		console.error("State JWT verification failed:", error.message);
-		return {
-			userId: null,
-			error: `State verification failed: ${error.message}`,
-		};
-	}
 }
 
 /**
@@ -215,9 +270,12 @@ export async function exchangeCodeForTokens(
 
 		console.log("Tokens obtained successfully via code exchange.");
 		return { tokens: data as SpotifyTokenResponse, error: null };
-	} catch (error: any) {
+	} catch (error) {
 		console.error("Network error during code exchange:", error);
-		return { tokens: null, error: `Network error: ${error.message}` };
+		return {
+			tokens: null,
+			error: `Network error: ${(error as Error).message}`,
+		};
 	}
 }
 
@@ -290,12 +348,15 @@ export async function refreshAccessToken(
 		}
 
 		return { accessToken: newTokens.access_token, error: null };
-	} catch (error: any) {
+	} catch (error) {
 		console.error(
 			`Network error during token refresh for user ${userId}:`,
 			error,
 		);
-		return { accessToken: null, error: `Network error: ${error.message}` };
+		return {
+			accessToken: null,
+			error: `Network error: ${(error as Error).message}`,
+		};
 	}
 }
 

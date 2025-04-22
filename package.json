@@ -8,9 +8,7 @@
 	"dependencies": {
 		"@antispace/sdk": "^0.0.2",
 		"@spotify/web-api-ts-sdk": "^1.2.0",
-		"@supabase/supabase-js": "^2.49.4",
-		"@types/jsonwebtoken": "^9.0.9",
-		"jsonwebtoken": "^9.0.2"
+		"@supabase/supabase-js": "^2.49.4"
 	},
 	"devDependencies": {
 		"@types/node": "^20.11.17",

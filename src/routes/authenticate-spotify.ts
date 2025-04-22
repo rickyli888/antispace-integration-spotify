@@ -1,4 +1,4 @@
-import { verifyStateJWT, exchangeCodeForTokens, saveTokens } from "../auth";
+import { verifyState, exchangeCodeForTokens, saveTokens } from "../auth";
 import type { Context } from "hono";
 
 export default async function callbackHandler(c: Context) {
@@ -13,7 +13,7 @@ export default async function callbackHandler(c: Context) {
 		);
 	}
 
-	const { userId, error: stateError } = verifyStateJWT(state);
+	const { userId, error: stateError } = await verifyState(state);
 	if (!userId) {
 		return c.html(
 			`<html><body><h2>Spotify OAuth Error</h2><p>Invalid or expired state: ${stateError || "Unknown error"}</p></body></html>`,

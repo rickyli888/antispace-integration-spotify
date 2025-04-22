@@ -149,7 +149,7 @@ async function AuthSection({
 
 	if (!accessToken) {
 		if (action === "connect_spotify") {
-			const authUrl = generateSpotifyAuthUrl(userId);
+			const authUrl = await generateSpotifyAuthUrl(userId);
 			if (authUrl) {
 				return (
 					<Anti.Column
