@@ -14,6 +14,7 @@ import {
 	toggleRepeat,
 } from "../ai/actions/spotify";
 import { PlaybackStateDisplay } from "./components/PlaybackComponent";
+import { APP_CONFIG } from "../config";
 
 import {
 	getValidAccessToken,
@@ -149,11 +150,34 @@ function SearchForm() {
 	);
 }
 
-async function AuthSection({ userId }: { userId: string }) {
+async function AuthSection({
+	userId,
+	action,
+}: { userId: string; action?: string }) {
 	const accessToken = await getValidAccessToken(userId);
 
 	if (!accessToken) {
-		const initiationUrl = `http://localhost:6100/authenticate-spotify?userId=${userId}`;
+		if (action === "connect_spotify") {
+			const authUrl = `${APP_CONFIG.baseUrl}/authenticate-spotify?userId=${encodeURIComponent(userId)}`;
+
+			return (
+				<Anti.Column
+					padding="medium"
+					spacing="small"
+					type="border"
+					align="center"
+				>
+					<Anti.Text type="largetype">Connect to Spotify</Anti.Text>
+					<Anti.Link
+						href={authUrl}
+						text="Click here to authorize Spotify Access"
+					/>
+					<Anti.Text type="small" align="center">
+						After authorizing, this widget will update.
+					</Anti.Text>
+				</Anti.Column>
+			);
+		}
 
 		return (
 			<Anti.Column
@@ -162,13 +186,11 @@ async function AuthSection({ userId }: { userId: string }) {
 				type="border"
 				align="center"
 			>
-				<Anti.Text type="largetype">Connect to Spotify</Anti.Text>
-				<Anti.Text type="dim" align="center">
-					Authorize this app to access your Spotify account to enable playback
-					features and more.
+				<Anti.Text align="center">
+					Connect your Spotify account for user-specific features.
 				</Anti.Text>
 				<Anti.Button
-					action={`antispace:open_external_url:${initiationUrl}`}
+					action="connect_spotify"
 					text="Connect Spotify"
 					type="primary"
 				/>
@@ -179,6 +201,7 @@ async function AuthSection({ userId }: { userId: string }) {
 	return (
 		<Anti.Row padding="medium" align="center">
 			<Anti.Badge text="Spotify Connected" type="primary" />
+			{/* User-specific features can be added here later */}
 		</Anti.Row>
 	);
 }
@@ -205,7 +228,7 @@ export default async function widgetUI(anti: AntispaceContext<MyAppUIActions>) {
 		);
 	}
 
-	const authSection = userId ? await AuthSection({ userId }) : null;
+	const authSection = userId ? await AuthSection({ userId, action }) : null;
 
 	if (action?.startsWith("get_recommendations_")) {
 		let results: SpotifyTrack[] = [];

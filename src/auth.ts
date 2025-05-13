@@ -1,8 +1,9 @@
 import { supabase, type SpotifyTokenData } from "./supabaseClient";
+import { APP_CONFIG } from "./config";
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
-const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI; // e.g., 'http://localhost:3000/auth/spotify/callback' or your deployed callback URL
+const SPOTIFY_REDIRECT_URI = APP_CONFIG.redirectUri;
 
 const SPOTIFY_SCOPES =
 	"user-read-currently-playing user-modify-playback-state user-read-playback-state"; // Add necessary scopes
@@ -245,7 +246,7 @@ export async function exchangeCodeForTokens(
 		redirect_uri: SPOTIFY_REDIRECT_URI,
 	});
 
-	const authHeader = `Basic ${Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString("base64")}`;
+	const authHeader = `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`;
 
 	try {
 		console.log("Exchanging authorization code for tokens...");
@@ -301,7 +302,7 @@ export async function refreshAccessToken(
 		refresh_token: refreshToken,
 	});
 
-	const authHeader = `Basic ${Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString("base64")}`;
+	const authHeader = `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`;
 
 	try {
 		console.log(`Refreshing access token for user ${userId}...`);
