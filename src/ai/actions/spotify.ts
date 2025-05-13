@@ -286,7 +286,9 @@ export async function playbackPrevious(userId: string): Promise<boolean> {
 		);
 
 		if (response.status === 204 || response.status === 200) {
-			console.log(`Successfully skipped to previous track (status: ${response.status})`);
+			console.log(
+				`Successfully skipped to previous track (status: ${response.status})`,
+			);
 			return true;
 		}
 
@@ -316,7 +318,9 @@ export async function playbackNext(userId: string): Promise<boolean> {
 		});
 
 		if (response.status === 204 || response.status === 200) {
-			console.log(`Successfully skipped to next track (status: ${response.status})`);
+			console.log(
+				`Successfully skipped to next track (status: ${response.status})`,
+			);
 			return true;
 		}
 
@@ -419,7 +423,9 @@ export async function toggleShuffle(userId: string): Promise<boolean> {
 		);
 
 		if (response.status === 204 || response.status === 200) {
-			console.log(`Successfully set shuffle to ${newShuffleState} (status: ${response.status})`);
+			console.log(
+				`Successfully set shuffle to ${newShuffleState} (status: ${response.status})`,
+			);
 			return true;
 		}
 
@@ -475,7 +481,9 @@ export async function toggleRepeat(userId: string): Promise<boolean> {
 		);
 
 		if (response.status === 204 || response.status === 200) {
-			console.log(`Successfully set repeat to ${newRepeatState} (status: ${response.status})`);
+			console.log(
+				`Successfully set repeat to ${newRepeatState} (status: ${response.status})`,
+			);
 			return true;
 		}
 

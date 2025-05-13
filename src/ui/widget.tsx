@@ -149,50 +149,11 @@ function SearchForm() {
 	);
 }
 
-async function AuthSection({
-	userId,
-	action,
-}: { userId: string; action?: string }) {
+async function AuthSection({ userId }: { userId: string }) {
 	const accessToken = await getValidAccessToken(userId);
 
 	if (!accessToken) {
-		if (action === "connect_spotify") {
-			const authUrl = await generateSpotifyAuthUrl(userId);
-			if (authUrl) {
-				return (
-					<Anti.Column
-						padding="medium"
-						spacing="small"
-						type="border"
-						align="center"
-					>
-						<Anti.Text type="largetype">Connect to Spotify</Anti.Text>
-						<Anti.Link
-							href={authUrl}
-							text="Click here to authorize Spotify Access"
-						/>
-						<Anti.Text type="small" align="center">
-							After authorizing, this widget will update.
-						</Anti.Text>
-					</Anti.Column>
-				);
-			}
-			return (
-				<Anti.Column
-					padding="medium"
-					spacing="small"
-					type="border"
-					align="center"
-				>
-					<Anti.Text type="negative" weight="bold">
-						Error
-					</Anti.Text>
-					<Anti.Text type="dim">
-						Could not generate Spotify authorization URL.
-					</Anti.Text>
-				</Anti.Column>
-			);
-		}
+		const initiationUrl = `http://localhost:6100/authenticate-spotify?userId=${userId}`;
 
 		return (
 			<Anti.Column
@@ -201,11 +162,13 @@ async function AuthSection({
 				type="border"
 				align="center"
 			>
-				<Anti.Text align="center">
-					Connect your Spotify account for user-specific features.
+				<Anti.Text type="largetype">Connect to Spotify</Anti.Text>
+				<Anti.Text type="dim" align="center">
+					Authorize this app to access your Spotify account to enable playback
+					features and more.
 				</Anti.Text>
 				<Anti.Button
-					action="connect_spotify"
+					action={`antispace:open_external_url:${initiationUrl}`}
 					text="Connect Spotify"
 					type="primary"
 				/>
@@ -216,7 +179,6 @@ async function AuthSection({
 	return (
 		<Anti.Row padding="medium" align="center">
 			<Anti.Badge text="Spotify Connected" type="primary" />
-			{/* User-specific features can be added here later */}
 		</Anti.Row>
 	);
 }
@@ -243,7 +205,7 @@ export default async function widgetUI(anti: AntispaceContext<MyAppUIActions>) {
 		);
 	}
 
-	const authSection = userId ? await AuthSection({ userId, action }) : null;
+	const authSection = userId ? await AuthSection({ userId }) : null;
 
 	if (action?.startsWith("get_recommendations_")) {
 		let results: SpotifyTrack[] = [];
@@ -519,7 +481,7 @@ export default async function widgetUI(anti: AntispaceContext<MyAppUIActions>) {
 		if (success) {
 			try {
 				const playbackState = await getCurrentPlayback(userId);
-				
+
 				return (
 					<Anti.Column padding="none" spacing="medium">
 						<Anti.Row padding="medium" justify="space-between" align="center">
@@ -527,7 +489,11 @@ export default async function widgetUI(anti: AntispaceContext<MyAppUIActions>) {
 								<Anti.Text type="heading1">Spotify Player</Anti.Text>
 								<Anti.Text type="positive">{actionName} successful!</Anti.Text>
 							</Anti.Column>
-							<Anti.Button action="" text="Back to Main Menu" type="secondary" />
+							<Anti.Button
+								action=""
+								text="Back to Main Menu"
+								type="secondary"
+							/>
 						</Anti.Row>
 
 						<PlaybackStateDisplay playbackState={playbackState} />
@@ -548,7 +514,9 @@ export default async function widgetUI(anti: AntispaceContext<MyAppUIActions>) {
 		return (
 			<Anti.Column padding="medium" spacing="medium" type="border">
 				{success ? (
-					<Anti.Text type="positive">{actionName} successful, but couldn't fetch updated state.</Anti.Text>
+					<Anti.Text type="positive">
+						{actionName} successful, but couldn't fetch updated state.
+					</Anti.Text>
 				) : (
 					<Anti.Text type="negative">
 						There was an issue updating playback. This might be due to
@@ -560,11 +528,7 @@ export default async function widgetUI(anti: AntispaceContext<MyAppUIActions>) {
 					text="View Playback State"
 					type="primary"
 				/>
-				<Anti.Button
-					action=""
-					text="Back to Main Menu"
-					type="secondary"
-				/>
+				<Anti.Button action="" text="Back to Main Menu" type="secondary" />
 			</Anti.Column>
 		);
 	}

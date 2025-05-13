@@ -68,8 +68,8 @@ export default async function aiActions({
 				const success = await actions.playbackPrevious(userId);
 				return {
 					success,
-					message: success 
-						? "Skipped to previous track" 
+					message: success
+						? "Skipped to previous track"
 						: "Failed to skip to previous track",
 				};
 			} catch (e: unknown) {
@@ -87,8 +87,8 @@ export default async function aiActions({
 				const success = await actions.playbackNext(userId);
 				return {
 					success,
-					message: success 
-						? "Skipped to next track" 
+					message: success
+						? "Skipped to next track"
 						: "Failed to skip to next track",
 				};
 			} catch (e: unknown) {
@@ -106,9 +106,7 @@ export default async function aiActions({
 				const success = await actions.playbackPause(userId);
 				return {
 					success,
-					message: success 
-						? "Playback paused" 
-						: "Failed to pause playback",
+					message: success ? "Playback paused" : "Failed to pause playback",
 				};
 			} catch (e: unknown) {
 				return {
@@ -125,9 +123,7 @@ export default async function aiActions({
 				const success = await actions.playbackResume(userId);
 				return {
 					success,
-					message: success 
-						? "Playback resumed" 
-						: "Failed to resume playback",
+					message: success ? "Playback resumed" : "Failed to resume playback",
 				};
 			} catch (e: unknown) {
 				return {
@@ -144,8 +140,8 @@ export default async function aiActions({
 				const success = await actions.toggleShuffle(userId);
 				return {
 					success,
-					message: success 
-						? "Shuffle mode toggled" 
+					message: success
+						? "Shuffle mode toggled"
 						: "Failed to toggle shuffle mode",
 				};
 			} catch (e: unknown) {
@@ -163,8 +159,8 @@ export default async function aiActions({
 				const success = await actions.toggleRepeat(userId);
 				return {
 					success,
-					message: success 
-						? "Repeat mode toggled" 
+					message: success
+						? "Repeat mode toggled"
 						: "Failed to toggle repeat mode",
 				};
 			} catch (e: unknown) {
